@@ -1,0 +1,53 @@
+version: '3'
+services:
+      mantis:
+            container_name: mantis
+            build:
+                  context: .
+                  dockerfile: Dockerfile
+            restart: unless-stopped
+            links:
+                  - mantis_db
+            depends_on:
+                  - mantis_db
+            networks:
+                  expose-network:
+                  db-network:
+            volumes:
+                  - ./mantis:/var/www/html
+            labels:
+                  #Redirect to https (don t include in other services)
+                  - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+                  - "traefik.enable=true"
+                  # Set host
+                  - "traefik.http.routers.support.rule=Host(`your.url`)"
+                  # Set service
+                  - "traefik.http.services.support.loadbalancer.server.port=80"
+                  - "traefik.http.routers.support.tls.certresolver=le"
+                  # Set to the secure endpoint
+                  - "traefik.http.routers.support.entrypoints=secure"
+                  # Redirect
+                  - "traefik.http.routers.support-redir.rule=Host(`your.url`)"
+                  - "traefik.http.routers.support-redir.entrypoints=insecure"
+                  - "traefik.http.routers.support-redir.middlewares=redirect-to-https"
+      mantis_db:
+            container_name: mantis_db
+            image: mysql:latest
+            networks:
+                  db-network:
+            volumes:
+                  - ./database:/var/lib/mysql
+            restart: always
+            environment:
+                  MYSQL_DATABASE: database_name
+                  MYSQL_ROOT_PASSWORD: password
+                  MYSQL_USER: user
+                  MYSQL_PASSWORD: password
+            ports:
+                  - '3306:3306'
+networks:
+  expose-network:
+    external:
+      name: expose-network
+  db-network:
+    driver: bridge
